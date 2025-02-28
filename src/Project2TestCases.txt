@@ -1,0 +1,113 @@
+o
+c
+q
+d
+w
+p
+a
+ps
+pa
+pt
+pb
+ph
+P
+A
+O  checking  bridgewater   John Doe 2/19/2000 500
+O  checking  bridgewater   John Doe 0/19/2000 200
+O  checking  bridgewater   John Doe 13/19/2000 200
+O  checking  bridgewater   John Doe 2/29/1999 200
+O  checking  bridgewater   John Doe 6/31/2000 200
+O  checking  bridgewater   John Doe 8/32/2000 200
+O  checking  Bridgewater   John Doe 8/0/2000 200
+
+O  checkng   bridgewater   John Doe 2/19/2000 200
+O  checking  bridgwater    John Doe 2/19/2000 200
+O  checking  Bridgewater   John Doe 2/19/2000
+O  checking  bridgewater   John Doe 2/28/2007 200
+O  checking  bridgewater   John Doe 2/19/2026 200
+O  checking  bridgewater   John Doe 1/19/2000 -200
+O  checking  bridgewater   John Doe 1/19/2000 abc
+O  checking  bridgewater   John Doe 1/19/2000 0
+O  checking  bridgewater   John Doe 2/19/2000 500
+O  savings   bridgewater   John Doe 2/19/2000 500
+O  moneymarket  bridgewater   John Doe 1/19/2000 500
+O  moneymarket  bridgewater   John Doe 2/19/2000 2500
+O  savings      edison   john doe 2/19/2000 500
+O  moneymarket Bridgewater   Roy Brooks 2/29/2002 2500
+O  moneymarket Princeton duke ellington 11/2/2002 3200
+
+O  college Princeton Amy Lin 1/2/2002 550
+O  college Princeton Amy Lin 1/2/2001 550 2
+O  college Princeton Amy Lin 1/2/2002 550 2
+O  college Princeton Amy Lin 1/2/2002 550 2
+ 
+O  certificate Princeton Amy Lin 1/2/2002 999 3 2/14/2025
+O  certificate Princeton Amy Lin 1/2/2002 1000 0 2/14/2025
+O  certificate Princeton Amy Lin 1/2/2002 1000 5  2/14/2025
+O  certificate Princeton Amy Lin 1/2/2002 1000 8 2/14/2025
+O  certificate Princeton Amy Lin 1/2/2002 1000 11 2/14/2025
+
+O  certificate Princeton Amy Lin 1/2/2002 1000 3  2/14/2025
+O  certificate Princeton Amy Lin 1/2/2002 3000 6  2/14/2025
+O  certificate Princeton April March 1/15/1987 2000 9  2/14/2025
+O  certificate Princeton Jason Brown 3/31/1998 1000 12 2/14/2025
+ 
+D  400043688 -100
+D  400043688  0
+D  400043688 
+D  400043688  abc
+D  400043095  100
+D  400043688  100
+D  300023147  100
+D  400039714  100
+D  400012615  100
+
+
+W  200030432  -100
+W  200030432  0
+W  200030432 
+W  200030432  ABC
+W  200030432  100
+W  200030432  500
+W  200030432  2000
+W  200030432  200
+W  200030432  200
+W  200030432  200
+
+W  200032742  100
+W  200032742  100
+W  200032742  100
+D  200032742  3000
+
+W  300033343  1200
+W  500037458  1600
+W  100026682  400
+W  300019048  400
+W  300045089  400
+W  400027003  700
+W  500024127  700
+W  400039714  300
+PH
+PT
+PB
+
+C  2/9/2025  100026682 
+C  2/9/2025  100026682 
+C  2/10/2025  
+C  2/11/2025  100019464 
+C  2/12/2025  Kate Lindsey 8/31/2001 
+C  2/12/2025  Kate Lindsey 8/31/2001 
+O  savings edison  Kate Lindsey 8/31/2001 300
+C  2/14/2025  Jason Brown 3/31/1998 
+C  2/14/2025  Jason Brown 3/31/1998 
+C  2/9/2025   300033343 
+C  2/9/2025   300053394 
+C  2/16/2025  Jane Anderson 11/5/2003 
+C  2/13/2025  500051126 
+C  2/12/2025  300055559 
+PA
+PH
+PS
+Q
+This line should not be processed.
+
