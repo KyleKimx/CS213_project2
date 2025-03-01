@@ -74,7 +74,11 @@ public abstract class Account implements Comparable<Account> {
      * @param amount the amount to deposit
      */
     public void deposit(double amount) {
-        balance += amount;
+        if (amount > 0) {
+            balance += amount;
+        } else {
+            throw new IllegalArgumentException("Deposit amount must be positive.");
+        }
     }
 
     /**
@@ -82,10 +86,11 @@ public abstract class Account implements Comparable<Account> {
      * @param amount the amount to withdraw
      * @return true if the withdrawal was successful, false otherwise
      */
-    public boolean withdraw(double amount) {
-        if(balance < amount) return false;
+    public void withdraw(double amount) {
+        if (balance < amount) {
+            throw new IllegalArgumentException();
+        }
         balance -= amount;
-        return true;
     }
 
     /**

@@ -1,11 +1,12 @@
 package rubank;
 
+import rubank.util.Date;
+import rubank.util.List;
+import rubank.util.Sort;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
-import rubank.util.List;
-import rubank.util.Sort;
-import rubank.util.Date;
 
 /**
  * The AccountDatabase class represents a database of accounts. It is responsible for storing and managing accounts.
@@ -176,7 +177,7 @@ public class AccountDatabase extends List<Account> {
             String[] tokens = line.split(",");
             if (tokens.length < 5) continue;
 
-            char dw = tokens[0].charAt(0); 
+            char dw = tokens[0].charAt(0);
             String acctNumString = tokens[1];
             Date actDate = new Date(tokens[2]);
             Branch loc = parseBranch(tokens[3]);
@@ -202,6 +203,27 @@ public class AccountDatabase extends List<Account> {
         return processedCount;
     }
 
+    public boolean withdraw(AccountNumber number, double amount) {
+        Account a = findByNumber(number.toString());
+        if (a==null){
+            return false;
+        }
+        try {
+            a.withdraw(amount);
+        }
+        catch (IllegalArgumentException e){
+            return false;
+        }
+        return true;
+    }
+
+    public void deposit(AccountNumber number, double amount) {
+        Account a = findByNumber(number.toString());
+        if (a==null){
+            throw new IllegalArgumentException();
+        }
+        a.deposit(amount);
+    }
     public Account findByNumber(String acctNumString){
         for(int i=0; i<size(); i++){
             Account a = get(i);
@@ -211,6 +233,7 @@ public class AccountDatabase extends List<Account> {
         }
         return null;
     }
+
 
     /**
      * Returns the archive of closed accounts.

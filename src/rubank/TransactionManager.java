@@ -23,27 +23,45 @@ public class TransactionManager {
         accountDatabase = new AccountDatabase();
     }
 
-    /**
-     * Opens a new account based on the provided tokens.
-     * @param tokens the command tokens
-     */
     private void updateLoyalStatusForSavings(Profile holder) {
-        boolean hasChecking = false;
-        for (int i = 0; i < accountDatabase.size(); i++) {
-            Account a = accountDatabase.get(i);
-            if (a.getHolder().equals(holder) && a.getNumber().getType() == AccountType.CHECKING) {
-                hasChecking = true;
-                break;
-            }
-        }
+        boolean hasChecking = hasChecking(holder);
         for (int i = 0; i < accountDatabase.size(); i++) {
             Account a = accountDatabase.get(i);
             if (a.getHolder().equals(holder) && a.getNumber().getType() == AccountType.SAVINGS) {
-                ((Savings)a).isLoyal = hasChecking;
+                ((Savings) a).isLoyal = hasChecking;
             }
         }
     }
 
+    private boolean hasChecking(Profile holder) {
+        for (int i = 0; i < accountDatabase.size(); i++) {
+            Account a = accountDatabase.get(i);
+            if (a.getHolder().equals(holder) && a.getNumber().getType() == AccountType.CHECKING) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Account createBasicAccount(AccountType acctType, Branch branch, Profile holder, double initDeposit) {
+        AccountNumber num = new AccountNumber(branch, acctType);
+        switch (acctType) {
+            case CHECKING:
+                return new Checking(num, holder, initDeposit);
+            case SAVINGS:
+                Savings s = new Savings(num, holder, initDeposit);
+                if (hasChecking(holder)) {
+                    s.isLoyal = true;
+                }
+                return s;
+            case MONEY_MARKET:
+                MoneyMarket mm = new MoneyMarket(num, holder, initDeposit);
+                mm.isLoyal = (initDeposit >= 5000);
+                return mm;
+            default:
+                return null;
+        }
+    }
 
     private void openAccount(String[] tokens) {
         if (tokens.length < 6) {
@@ -77,24 +95,9 @@ public class TransactionManager {
                     System.out.println("Missing data tokens for opening an account.");
                     return;
                 }
-                double initDep1 = parseDeposit(tokens[6], acctType);
-                if (initDep1 < 0) return;
-                AccountNumber num1 = new AccountNumber(branch, acctType);
-                if (acctType == AccountType.CHECKING) {
-                    newAcct = new Checking(num1, holder, initDep1);
-                } else if (acctType == AccountType.SAVINGS) {
-                    newAcct = new Savings(num1, holder, initDep1);
-                    for (int i = 0; i < accountDatabase.size(); i++) {
-                        Account a = accountDatabase.get(i);
-                        if (a.getHolder().equals(holder) && a.getNumber().getType() == AccountType.CHECKING) {
-                            ((Savings)newAcct).isLoyal = true;
-                            break;
-                        }
-                    }
-                } else { 
-                    newAcct = new MoneyMarket(num1, holder, initDep1);
-                    ((MoneyMarket)newAcct).isLoyal = (initDep1 >= 5000);
-                }
+                double initDep = parseDeposit(tokens[6], acctType);
+                if (initDep < 0) return;
+                newAcct = createBasicAccount(acctType, branch, holder, initDep);
                 break;
 
             case COLLEGE_CHECKING:
@@ -106,8 +109,8 @@ public class TransactionManager {
                     System.out.println("Not eligible to open a college checking account (must be 24 or younger).");
                     return;
                 }
-                double initDep2 = parseDeposit(tokens[6], AccountType.CHECKING);
-                if (initDep2 < 0) return;
+                double ccInitDep = parseDeposit(tokens[6], AccountType.CHECKING);
+                if (ccInitDep < 0) return;
                 int campusCode;
                 try {
                     campusCode = Integer.parseInt(tokens[7]);
@@ -121,7 +124,7 @@ public class TransactionManager {
                     return;
                 }
                 AccountNumber num2 = new AccountNumber(branch, AccountType.COLLEGE_CHECKING);
-                newAcct = new CollegeChecking(num2, holder, initDep2, campus);
+                newAcct = new CollegeChecking(num2, holder, ccInitDep, campus);
                 break;
 
             case CD:
@@ -129,8 +132,8 @@ public class TransactionManager {
                     System.out.println("Missing deposit, term, or open date for certificate deposit.");
                     return;
                 }
-                double initDep3 = parseDeposit(tokens[6], AccountType.CD);
-                if (initDep3 < 0) return;
+                double cdInitDep = parseDeposit(tokens[6], AccountType.CD);
+                if (cdInitDep < 0) return;
                 int term;
                 try {
                     term = Integer.parseInt(tokens[7]);
@@ -145,7 +148,7 @@ public class TransactionManager {
                     return;
                 }
                 AccountNumber num3 = new AccountNumber(branch, AccountType.CD);
-                newAcct = new CertificateDeposit(num3, holder, initDep3, term, cdOpenDate);
+                newAcct = new CertificateDeposit(num3, holder, cdInitDep, term, cdOpenDate);
                 break;
 
             default:
@@ -306,7 +309,7 @@ public class TransactionManager {
             System.out.println(accountNumberString + " does not exist.");
             return;
         }
-        a.deposit(amount);
+        accountDatabase.deposit(a.getNumber(),amount);
         a.addActivity(new Activity(new Date(), a.getNumber().getBranch(), 'D', amount, false));
         DecimalFormat df = new DecimalFormat("#,##0.00");
         System.out.println("$" + df.format(amount) + " deposited to " + accountNumberString);
@@ -343,8 +346,7 @@ public class TransactionManager {
             return;
         }
         boolean isMoneyMarket = (a instanceof MoneyMarket);
-
-        boolean success = a.withdraw(amount);
+        boolean success = accountDatabase.withdraw(a.getNumber(), amount);
         if (!success) {
             if (isMoneyMarket && a.getBalance() < 2000)
                 System.out.printf("%s balance below $2,000 - withdrawing $%,.2f - insufficient funds.\n", accountNumberString, amount);
@@ -363,6 +365,13 @@ public class TransactionManager {
         }
     }
 
+    private Profile parseProfile(String fname, String lname, String dobString) {
+        Date dob = parseDate(dobString);
+        if (dob == null) {
+            return null;
+        }
+        return new Profile(fname, lname, dob);
+    }
     /**
      * Parses the account type from the input string.
      * @param input the input string
@@ -568,22 +577,6 @@ public class TransactionManager {
         }
         scanner.close();
     }
-
-    // /**
-    //  * Prints all accounts in the account database.
-    //  */
-    // private void printAccounts(){
-    //     if (accountDatabase.isEmpty()){
-    //         System.out.println("Account database is empty");
-    //         return;
-    //     }
-    //     System.out.println("\n*List of accounts in the account database.");
-    //     Account[] accounts = accountDatabase.getAllAccounts();
-    //     for (int i = 0; i < accountDatabase.size(); i++) {
-    //         System.out.println(accounts[i]);
-    //     }
-    //     System.out.println("*end of list.\n");
-    // }
 
     /**
      * Prints all closed accounts in the archive.

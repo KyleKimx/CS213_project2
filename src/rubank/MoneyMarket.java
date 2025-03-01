@@ -11,7 +11,6 @@ package rubank;
  */
 public class MoneyMarket extends Savings {
     private int withdrawal; // how many times we've withdrawn so far
-
     private static final double BASE_ANNUAL = 0.035;     // 3.5%
     private static final double LOYAL_ANNUAL = 0.0375;   // 3.75%
 
@@ -26,14 +25,16 @@ public class MoneyMarket extends Savings {
     }
 
     @Override
-    public boolean withdraw(double amount) {
+    public void withdraw(double amount) {
         if (balance < amount) {
-            return false; // insufficient
+            throw new IllegalArgumentException();
         }
         // otherwise proceed
         balance -= amount;
         withdrawal++;
-        return true;
+       if (balance < 5000){
+           isLoyal = false;
+       }
     }
 
     @Override
