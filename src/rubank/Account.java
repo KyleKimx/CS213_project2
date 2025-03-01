@@ -44,15 +44,22 @@ public abstract class Account implements Comparable<Account> {
     public abstract double fee();
 
     protected void printActivities() {
-        if(activities.isEmpty()) {
+        if (activities.isEmpty()) {
             System.out.println("\t[Activity] No transactions");
         } else {
             System.out.println("\t[Activity]");
-            for(Activity act : activities) {
-                // print a short line
-                String wOrD = (act.getType()=='D') ? "deposit" : "withdrawal";
-                System.out.printf("\t\t%s::%s::$%,.2f\n",
-                        act.getDate(), wOrD, act.getAmount());
+            for (Activity act : activities) {
+                // "deposit" or "withdrawal"
+                String wOrD = (act.getType() == 'D') ? "deposit" : "withdrawal";
+
+                // Build something like:
+                // "2/5/2025::PRINCETON[ATM]::withdrawal::$500.00"
+                System.out.printf("\t\t%s::%s%s::%s::$%,.2f\n",
+                        act.getDate().toString(),        // e.g. "2/5/2025"
+                        act.getLocation().name(),       // e.g. "PRINCETON"
+                        act.isAtm() ? "[ATM]" : "",     // only "[ATM]" if 'atm == true'
+                        wOrD,                           // "deposit" / "withdrawal"
+                        act.getAmount());               // e.g. 500 => "500.00"
             }
         }
     }

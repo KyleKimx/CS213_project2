@@ -36,6 +36,12 @@ public class Savings extends Account {
         return MONTHLY_FEE;
     }
 
+    public double getAnnualRate() {
+        double base = 0.025;
+        if (isLoyal) base += 0.0025;
+        return base;
+    }
+
     @Override
     public String toString() {
         // add "[LOYAL]" if isLoyal == true

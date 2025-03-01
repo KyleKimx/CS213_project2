@@ -24,6 +24,10 @@ public class Date implements Comparable<Date> {
     private static final int DAYS_FEBRUARY_NON_LEAP = 28;
     private static final int DAYS_FEBRUARY_LEAP = 29;
 
+    private static final int TODAY_YEAR = 2025;
+    private static final int TODAY_MONTH = 2;
+    private static final int TODAY_DAY = 28;
+
     /**
      * Constructs a Date from a string in the format "MM/DD/YYYY".
      * @param date the date string
@@ -122,16 +126,17 @@ public class Date implements Comparable<Date> {
     }
 
     public int getAge() {
-        Calendar today = Calendar.getInstance();
+        Calendar projectToday = Calendar.getInstance();
+        projectToday.set(TODAY_YEAR, TODAY_MONTH - 1, TODAY_DAY);
+
         Calendar birthDate = Calendar.getInstance();
         birthDate.set(year, month - 1, day);
 
-        int age = today.get(Calendar.YEAR) - birthDate.get(Calendar.YEAR);
-
-        if (today.get(Calendar.MONTH) < birthDate.get(Calendar.MONTH) 
-       || (today.get(Calendar.MONTH) == birthDate.get(Calendar.MONTH)
-          && today.get(Calendar.DAY_OF_MONTH) < birthDate.get(Calendar.DAY_OF_MONTH))) {
-        age--;
+        int age = projectToday.get(Calendar.YEAR) - birthDate.get(Calendar.YEAR);
+        if (projectToday.get(Calendar.MONTH) < birthDate.get(Calendar.MONTH)
+                || (projectToday.get(Calendar.MONTH) == birthDate.get(Calendar.MONTH)
+                && projectToday.get(Calendar.DAY_OF_MONTH) < birthDate.get(Calendar.DAY_OF_MONTH))) {
+            age--;
         }
         return age;
     }

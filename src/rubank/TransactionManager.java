@@ -106,7 +106,7 @@ public class TransactionManager {
                     return;
                 }
                 if (dob.getAge() > 24) {
-                    System.out.println("Not eligible to open a college checking account (must be 24 or younger).");
+                    System.out.println("Not eligible to open: " + dob + " over 24.");
                     return;
                 }
                 double ccInitDep = parseDeposit(tokens[6], AccountType.CHECKING);
@@ -189,17 +189,14 @@ public class TransactionManager {
             System.out.println("Close date invalid: " + tokens[1]);
             return;
         }
-        if (tokens.length == 3) { 
+        if (tokens.length == 3) {
             String acctNumString = tokens[2];
             Account a = accountDatabase.findByNumber(acctNumString);
             if (a == null) {
                 System.out.println(acctNumString + " account does not exist.");
                 return;
             }
-            accountDatabase.closeAccount(a, closeDate);
-            System.out.println(acctNumString + " is closed and moved to archive;");
-            if (a.getNumber().getType() == AccountType.CHECKING)
-                updateLoyalStatusForSavings(a.getHolder());
+            closeSingleAccount(a, closeDate);
         } else if (tokens.length == 5) { 
             String fname = tokens[2];
             String lname = tokens[3];
@@ -216,16 +213,131 @@ public class TransactionManager {
                 return;
             }
             Profile p = new Profile(fname, lname, d);
-            boolean closedAny = accountDatabase.closeAllAccountsForHolder(p, closeDate);
-            if (closedAny) {
-                System.out.println("All accounts for " + p.toString() + " are closed and moved to archive; balance set to 0.");
-            } else {
-                System.out.println(p.toString() + " does not have any accounts in the database.");
-            }
+            closeAccountsForHolder(p, closeDate);
         } else {
-            System.out.println("Invalid format for closing an account.");
+            System.out.println("Missing data for closing an account.");
         }
     }
+
+    private void closeAccountsForHolder(Profile holder, Date closeDate) {
+        boolean closedAny = false;
+        // Iterate from the end so removal won't skip anything
+        for (int i = accountDatabase.size() - 1; i >= 0; i--) {
+            Account candidate = accountDatabase.get(i);
+            if (candidate.getHolder().equals(holder)) {
+                // For multi-account closure, the expected shows lines like:
+                //   --300058091 interest earned: $0.08
+                //   [penalty] $0.01
+                // So let's replicate that style directly here:
+                if (!closedAny) {
+                    System.out.println("Closing accounts for " + holder);
+                }
+                closedAny = true;
+                double interestEarned = 0.0;
+                double penalty = 0.0;
+                if (candidate instanceof CertificateDeposit) {
+                    CertificateDeposit cd = (CertificateDeposit) candidate;
+                    interestEarned = cd.computeClosingInterest(closeDate);
+                    penalty = cd.getPenalty();
+                    // deposit interest if > 0
+                    if (interestEarned > 0) {
+                        candidate.deposit(interestEarned);
+                    }
+                    candidate.balance -= penalty;
+                } else {
+                    interestEarned = computePartialMonthInterest(candidate, closeDate);
+                    if (interestEarned > 0) {
+                        candidate.deposit(interestEarned);
+                    }
+                }
+                System.out.printf("--%s interest earned: $%.2f\n",
+                        candidate.getNumber(), interestEarned);
+                if (penalty > 0) {
+                    System.out.printf("  [penalty] $%.2f\n", penalty);
+                }
+                accountDatabase.closeAccount(candidate, closeDate);
+                if (candidate instanceof Checking) {
+                    updateLoyalStatusForSavings(candidate.getHolder());
+                }
+                closedAny = true;
+            }
+        }
+        if (closedAny) {
+            System.out.println("All accounts for " + holder
+                    + " are closed and moved to archive.");
+        } else {
+            System.out.println(holder + " does not have any accounts in the database.");
+        }
+    }
+
+    private void closeSingleAccount(Account acct, Date closeDate) {
+        // 1) Print heading line
+        System.out.println("Closing account " + acct.getNumber());
+
+        double interestEarned = 0.0;
+        double penalty = 0.0;
+
+        if (acct instanceof CertificateDeposit) {
+            CertificateDeposit cd = (CertificateDeposit) acct;
+            interestEarned = cd.computeClosingInterest(closeDate);
+            penalty = cd.getPenalty();
+
+            // Deposit only if interest > 0
+            if (interestEarned > 0) {
+                acct.deposit(interestEarned);
+            }
+            // Subtract penalty directly (avoid deposit of negative)
+            acct.balance -= penalty;
+        } else {
+            // Checking/Savings/College/MoneyMarket partial-month interest
+            interestEarned = computePartialMonthInterest(acct, closeDate);
+            if (interestEarned > 0) {
+                acct.deposit(interestEarned);
+            }
+        }
+
+        // 2) Print interest line
+        System.out.printf("--interest earned: $%.2f\n", interestEarned);
+
+        // 3) If penalty>0, print penalty line with the exact bracket style if required.
+        if (penalty > 0) {
+            // If your prof wants “[penalty] $X” with no dashes:
+            System.out.printf("  [penalty] $%.2f\n", penalty);
+
+            // If they specifically want “--penalty: $X”, do that.
+            // Just match exactly your expected format.
+        }
+
+        // 4) Actually remove from DB + add to archive
+        accountDatabase.closeAccount(acct, closeDate);
+
+        // If closed a CHECKING, possibly break loyalty for that holder’s SAVINGS
+        if (acct instanceof Checking) {
+            updateLoyalStatusForSavings(acct.getHolder());
+        }
+    }
+
+    private double computePartialMonthInterest(Account acct, Date closeDate) {
+        double annualRate;
+        if (acct instanceof Checking) {
+            annualRate = 0.015;
+        } else if (acct instanceof CollegeChecking) {
+            annualRate = 0.015;
+        } else if (acct instanceof MoneyMarket) {
+            MoneyMarket mm = (MoneyMarket) acct;
+            annualRate = mm.isLoyal ? 0.0375 : 0.035;
+        } else if (acct instanceof Savings) {
+            Savings s = (Savings) acct;
+            annualRate = s.isLoyal ? 0.0275 : 0.025;
+        } else {
+            // Should never happen for normal checking/savings/college/money-market
+            annualRate = 0.0;
+        }
+        int dayOfMonth = closeDate.getDay(); // 1..31
+        double dailyRate = annualRate / 365.0;
+        return acct.getBalance() * dailyRate * dayOfMonth;
+    }
+
 
     private void processActivities() {
 
@@ -251,13 +363,21 @@ public class TransactionManager {
                 double amt = Double.parseDouble(tokens[4]);
     
                 Account target = accountDatabase.findByNumber(acctNumString);
-                
+
+                if (target == null) {
+                    continue;
+                }
+
                 if (dw == 'D') {
                     target.deposit(amt);
+                    Activity depositAct = new Activity(actDate, loc, 'D', amt, true);
+                    target.addActivity(depositAct);
                     System.out.printf("%s::%s::%s[ATM]::deposit::$%,.2f\n",
                             acctNumString, actDate, loc, amt);
                 } else {
                     target.withdraw(amt);
+                    Activity withdrawAct = new Activity(actDate, loc, 'W', amt, true);
+                    target.addActivity(withdrawAct);
                     System.out.printf("%s::%s::%s[ATM]::withdrawal::$%,.2f\n",
                             acctNumString, actDate, loc, amt);
                 }

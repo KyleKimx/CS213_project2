@@ -2,6 +2,8 @@ package rubank;
 
 import rubank.util.Date;
 
+import java.text.DecimalFormat;
+
 public class Activity implements Comparable<Activity> {
     private Date date;
     private Branch location;
@@ -44,14 +46,35 @@ public class Activity implements Comparable<Activity> {
 
     @Override
     public String toString() {
-        String atmTag = atm ? "[ATM]" : "";
-        String depositOrWithdrawal = (type == 'D') ? "deposit" : "withdrawal";
-        return String.format("%s::%s%s::%s::$%,.2f",
-                date.toString(),
-                location.name(),
-                atmTag,
-                depositOrWithdrawal,
-                amount);
+        DecimalFormat df = new DecimalFormat("#,##0.00");
+
+        // Build something like:  2/1/2025::WARREN[ATM]::withdrawal::$100.00
+        StringBuilder sb = new StringBuilder();
+
+        // date => e.g. "2/1/2025"
+        sb.append(date.toString());
+        sb.append("::");
+
+        // branch => e.g. "WARREN"
+        sb.append(location.name());
+
+        // If this activity came from the .txt (atm == true), append [ATM]
+        if (atm) {
+            sb.append("[ATM]");
+        }
+        sb.append("::");
+
+        // Either "deposit" or "withdrawal"
+        if (type == 'D') {
+            sb.append("deposit::$");
+        } else {
+            sb.append("withdrawal::$");
+        }
+
+        // Format the amount with commas
+        sb.append(df.format(amount));
+
+        return sb.toString();
     }
 
 }
