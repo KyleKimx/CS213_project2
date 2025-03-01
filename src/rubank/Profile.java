@@ -58,10 +58,22 @@ public class Profile implements Comparable<Profile>{
     @Override
     public int compareTo(Profile other){
         int lastNameComparison = this.lname.compareToIgnoreCase(other.lname);
-        if (lastNameComparison != 0) return lastNameComparison;
+        if (lastNameComparison != 0) {
+            // Force it to be exactly -1 or +1 instead of a larger negative/positive.
+            return lastNameComparison < 0 ? -1 : 1;
+        }
+
+        // 2) Compare first names ignoring case.
         int firstNameComparison = this.fname.compareToIgnoreCase(other.fname);
-        if (firstNameComparison != 0) return firstNameComparison;
-        return this.dob.compareTo(other.dob);
+        if (firstNameComparison != 0) {
+            return firstNameComparison < 0 ? -1 : 1;
+        }
+
+        // 3) Compare DOB using Date.compareTo(...).
+        int dateComparison = this.dob.compareTo(other.dob);
+        if (dateComparison < 0) return -1;
+        if (dateComparison > 0) return 1;
+        return 0;
     }
 
     /**

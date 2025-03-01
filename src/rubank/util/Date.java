@@ -144,9 +144,24 @@ public class Date implements Comparable<Date> {
      */
     @Override
     public int compareTo(Date other) {
-        if (this.year != other.year) return this.year - other.year;
-        if (this.month != other.month) return this.month - other.month;
-        return this.day - other.day;
+        int yearDiff = this.year - other.year;
+        if (yearDiff != 0) {
+            return yearDiff < 0 ? -1 : 1;
+        }
+
+        // Compare months
+        int monthDiff = this.month - other.month;
+        if (monthDiff != 0) {
+            return monthDiff < 0 ? -1 : 1;
+        }
+
+        // Compare days
+        int dayDiff = this.day - other.day;
+        if (dayDiff != 0) {
+            return dayDiff < 0 ? -1 : 1;
+        }
+
+        return 0; // Same exact date
     }
 
     /**
@@ -178,49 +193,49 @@ public class Date implements Comparable<Date> {
      * It runs several test cases to validate the functionality of the Date class.
      * Each test case prints the date, the test objective, the result of the isValid() method, and the expected outcome.
      */
-    public static void main(String[] args) {
-        System.out.println("Date class Testbed main() running.\n");
-
-        Date d1 = new Date("0/15/2000");
-        System.out.println("Test #1: d1 = " + d1);
-        System.out.println("Test Objective: Validate month");
-        System.out.println("isValid() => " + d1.isValid() + " (expected false)");
-        System.out.println("Reason: month=0 is out of valid range (1..12).\n");
-
-        // 2) month=13 => invalid month range
-        Date d2 = new Date("13/15/2020");
-        System.out.println("Test #2: d2 = " + d2);
-        System.out.println("Test Objective: Validate month");
-        System.out.println("isValid() => " + d2.isValid() + " (expected false)");
-        System.out.println("Reason: month=13 is out of valid range (1..12).\n");
-
-        // 3) day=31 in April => invalid day for a 30-day month
-        Date d3 = new Date("4/31/2023");
-        System.out.println("Test #3: d3 = " + d3);
-        System.out.println("Test Objective: Validate day");
-        System.out.println("isValid() => " + d3.isValid() + " (expected false)");
-        System.out.println("Reason: April has 30 days, so day=31 is invalid.\n");
-
-        // 4) day=29 in 2023 => not a leap year => invalid date
-        Date d4 = new Date("2/29/2023");
-        System.out.println("Test #4: d4 = " + d4);
-        System.out.println("Test Objective: Validate leap year + day");
-        System.out.println("isValid() => " + d4.isValid() + " (expected false)");
-        System.out.println("Reason: 2023 is not a leap year, so Feb 29 is invalid.\n");
-
-        // 5) day=29 in 2020 => leap year => valid date
-        Date d5 = new Date("2/29/2020");
-        System.out.println("Test #5: d5 = " + d5);
-        System.out.println("Test Objective: Validate leap year + day");
-        System.out.println("isValid() => " + d5.isValid() + " (expected true)");
-        System.out.println("Reason: 2020 is a leap year, so Feb 29 is valid.\n");
-
-        // 6) 7/4/1999 => normal valid date
-        Date d6 = new Date("7/4/1999");
-        System.out.println("Test #6: d6 = " + d6);
-        System.out.println("Test Objective: Validate day");
-        System.out.println("isValid() => " + d6.isValid() + " (expected true)");
-        System.out.println("Reason: month=7, day=4, year=1999 => within valid ranges.\n");
-        System.out.println("End of Date testbed main().");
-    }
+//    public static void main(String[] args) {
+//        System.out.println("Date class Testbed main() running.\n");
+//
+//        Date d1 = new Date("0/15/2000");
+//        System.out.println("Test #1: d1 = " + d1);
+//        System.out.println("Test Objective: Validate month");
+//        System.out.println("isValid() => " + d1.isValid() + " (expected false)");
+//        System.out.println("Reason: month=0 is out of valid range (1..12).\n");
+//
+//        // 2) month=13 => invalid month range
+//        Date d2 = new Date("13/15/2020");
+//        System.out.println("Test #2: d2 = " + d2);
+//        System.out.println("Test Objective: Validate month");
+//        System.out.println("isValid() => " + d2.isValid() + " (expected false)");
+//        System.out.println("Reason: month=13 is out of valid range (1..12).\n");
+//
+//        // 3) day=31 in April => invalid day for a 30-day month
+//        Date d3 = new Date("4/31/2023");
+//        System.out.println("Test #3: d3 = " + d3);
+//        System.out.println("Test Objective: Validate day");
+//        System.out.println("isValid() => " + d3.isValid() + " (expected false)");
+//        System.out.println("Reason: April has 30 days, so day=31 is invalid.\n");
+//
+//        // 4) day=29 in 2023 => not a leap year => invalid date
+//        Date d4 = new Date("2/29/2023");
+//        System.out.println("Test #4: d4 = " + d4);
+//        System.out.println("Test Objective: Validate leap year + day");
+//        System.out.println("isValid() => " + d4.isValid() + " (expected false)");
+//        System.out.println("Reason: 2023 is not a leap year, so Feb 29 is invalid.\n");
+//
+//        // 5) day=29 in 2020 => leap year => valid date
+//        Date d5 = new Date("2/29/2020");
+//        System.out.println("Test #5: d5 = " + d5);
+//        System.out.println("Test Objective: Validate leap year + day");
+//        System.out.println("isValid() => " + d5.isValid() + " (expected true)");
+//        System.out.println("Reason: 2020 is a leap year, so Feb 29 is valid.\n");
+//
+//        // 6) 7/4/1999 => normal valid date
+//        Date d6 = new Date("7/4/1999");
+//        System.out.println("Test #6: d6 = " + d6);
+//        System.out.println("Test Objective: Validate day");
+//        System.out.println("isValid() => " + d6.isValid() + " (expected true)");
+//        System.out.println("Reason: month=7, day=4, year=1999 => within valid ranges.\n");
+//        System.out.println("End of Date testbed main().");
+//    }
 }
