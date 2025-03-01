@@ -229,18 +229,6 @@ public class TransactionManager {
 
     private void processActivities() {
 
-        File accountsFile = new File("accounts.txt");
-        if (accountsFile.exists()) {
-            try {
-                int loaded = accountDatabase.loadAccounts(accountsFile);
-            } catch (IOException e) {
-                System.out.println("Error loading accounts: " + e.getMessage());
-                return; 
-            }
-        } else {
-            System.out.println("Error: accounts.txt not found. Cannot process activities.");
-            return;
-        }
         if (accountDatabase.isEmpty()) {
             System.out.println("ERROR: Account database is empty! Ensure accounts are loaded before processing activities.");
             return;
@@ -493,6 +481,15 @@ public class TransactionManager {
      * Commands include opening, closing, depositing, withdrawing, and printing accounts.
      */
     public void run() {
+
+        try {
+            accountDatabase.loadAccounts(new File("accounts.txt"));
+            System.out.println("Accounts in \"accounts.txt\" loaded to the database.");
+        } catch (IOException e) {
+            // Handle any file I/O problems here.
+            System.out.println("Could not load accounts from \"accounts.txt\": " + e.getMessage());
+        }
+
         Scanner scanner = new Scanner(System.in);
         System.out.println("Transaction Manager is running.");
 
