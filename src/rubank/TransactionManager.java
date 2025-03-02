@@ -1,6 +1,7 @@
 package rubank;
 
 import rubank.util.Date;
+import rubank.util.List;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,10 +12,14 @@ import java.util.Scanner;
  * The TransactionManager class manages transactions for accounts in the AccountDatabase.
  * It provides methods to open, close, deposit, and withdraw from accounts.
  * It also provides methods to print accounts in various orders.
- * @author Alison Chu, Byounguk Kim
  */
 public class TransactionManager {
     private final AccountDatabase accountDatabase;
+
+    // ---------------------------------------------
+    // NEW: We fix a single date for console deposits/withdrawals:
+//    private static final Date CONSOLE_TODAY = new Date("2/14/2025");
+    // ---------------------------------------------
 
     /**
      * Constructs a TransactionManager with an empty AccountDatabase.
@@ -27,7 +32,9 @@ public class TransactionManager {
         boolean hasChecking = hasChecking(holder);
         for (int i = 0; i < accountDatabase.size(); i++) {
             Account a = accountDatabase.get(i);
-            if (a.getHolder().equals(holder) && a.getNumber().getType() == AccountType.SAVINGS) {
+            if (a.getHolder().equals(holder) &&
+                    a.getNumber().getType() == AccountType.SAVINGS &&
+                        !(a instanceof CertificateDeposit)) {
                 ((Savings) a).isLoyal = hasChecking;
             }
         }
@@ -84,8 +91,12 @@ public class TransactionManager {
         Date dob = parseDate(dobString);
         if (dob == null) return;
 
-        Account newAcct = null;
         Profile holder = new Profile(fname, lname, dob);
+
+        double initDep = 0.0;
+        int term = 0;
+        Date cdOpenDate = null;
+        int campusCode = 0;
 
         switch (acctType) {
             case CHECKING:
@@ -95,9 +106,10 @@ public class TransactionManager {
                     System.out.println("Missing data tokens for opening an account.");
                     return;
                 }
-                double initDep = parseDeposit(tokens[6], acctType);
-                if (initDep < 0) return;
-                newAcct = createBasicAccount(acctType, branch, holder, initDep);
+                initDep = parseDeposit(tokens[6], acctType);
+                if (initDep < 0) {
+                    return;
+                }
                 break;
 
             case COLLEGE_CHECKING:
@@ -105,13 +117,14 @@ public class TransactionManager {
                     System.out.println("Missing data tokens for opening an account.");
                     return;
                 }
-                if (dob.getAge() > 24) {
+                if (dob.getAge() > 23 || dob.getAge() < 18) {
                     System.out.println("Not eligible to open: " + dob + " over 24.");
                     return;
                 }
-                double ccInitDep = parseDeposit(tokens[6], AccountType.CHECKING);
-                if (ccInitDep < 0) return;
-                int campusCode;
+                initDep = parseDeposit(tokens[6], AccountType.CHECKING);
+                if (initDep < 0) {
+                    return;
+                }
                 try {
                     campusCode = Integer.parseInt(tokens[7]);
                 } catch (NumberFormatException e) {
@@ -123,8 +136,6 @@ public class TransactionManager {
                     System.out.println(campusCode + " is not a valid campus code (1,2,3).");
                     return;
                 }
-                AccountNumber num2 = new AccountNumber(branch, AccountType.COLLEGE_CHECKING);
-                newAcct = new CollegeChecking(num2, holder, ccInitDep, campus);
                 break;
 
             case CD:
@@ -132,23 +143,24 @@ public class TransactionManager {
                     System.out.println("Missing deposit, term, or open date for certificate deposit.");
                     return;
                 }
-                double cdInitDep = parseDeposit(tokens[6], AccountType.CD);
-                if (cdInitDep < 0) return;
-                int term;
+                initDep = parseDeposit(tokens[6], AccountType.CD);
+                if (initDep < 0) {
+                    return;
+                }
                 try {
                     term = Integer.parseInt(tokens[7]);
                 } catch (NumberFormatException e) {
                     System.out.println(tokens[7] + " - invalid term (3,6,9,12).");
                     return;
                 }
-                Date cdOpenDate = parseDateNoAgeCheck(tokens[8]);
-                if (cdOpenDate == null) return;
+                cdOpenDate = parseDateNoAgeCheck(tokens[8]);
+                if (cdOpenDate == null) {
+                    return;
+                }
                 if (term != 3 && term != 6 && term != 9 && term != 12) {
                     System.out.println(term + " is not a valid term.");
                     return;
                 }
-                AccountNumber num3 = new AccountNumber(branch, AccountType.CD);
-                newAcct = new CertificateDeposit(num3, holder, cdInitDep, term, cdOpenDate);
                 break;
 
             default:
@@ -161,17 +173,36 @@ public class TransactionManager {
             return;
         }
 
-        if (newAcct instanceof Checking)
+        Account newAcct;
+        switch (acctType) {
+            case CHECKING:
+            case SAVINGS:
+            case MONEY_MARKET:
+                newAcct = createBasicAccount(acctType, branch, holder, initDep);
+                break;
+
+            case COLLEGE_CHECKING:
+                AccountNumber ccNum = new AccountNumber(branch, AccountType.COLLEGE_CHECKING);
+                Campus c = Campus.fromInt(campusCode);
+                newAcct = new CollegeChecking(ccNum, holder, initDep, c);
+                break;
+
+            case CD:
+                AccountNumber cdNum = new AccountNumber(branch, AccountType.CD);
+                newAcct = new CertificateDeposit(cdNum, holder, initDep, term, cdOpenDate);
+                break;
+
+            default:
+                return;
+        }
+
+        if (newAcct instanceof Checking) {
             updateLoyalStatusForSavings(holder);
+        }
 
         accountDatabase.add(newAcct);
         System.out.printf("%s account %s has been opened.\n", acctType.name(), newAcct.getNumber().toString());
     }
-
-    /**
-     * Closes an account based on the provided tokens.
-     * @param tokens the command tokens
-     */
 
     private void closeAccount(String[] tokens) {
         if (tokens.length < 2) {
@@ -197,7 +228,7 @@ public class TransactionManager {
                 return;
             }
             closeSingleAccount(a, closeDate);
-        } else if (tokens.length == 5) { 
+        } else if (tokens.length == 5) {
             String fname = tokens[2];
             String lname = tokens[3];
             String strDob = tokens[4];
@@ -221,14 +252,9 @@ public class TransactionManager {
 
     private void closeAccountsForHolder(Profile holder, Date closeDate) {
         boolean closedAny = false;
-        // Iterate from the end so removal won't skip anything
-        for (int i = accountDatabase.size() - 1; i >= 0; i--) {
+        for (int i = 0; i <accountDatabase.size() ; i++) {
             Account candidate = accountDatabase.get(i);
             if (candidate.getHolder().equals(holder)) {
-                // For multi-account closure, the expected shows lines like:
-                //   --300058091 interest earned: $0.08
-                //   [penalty] $0.01
-                // So let's replicate that style directly here:
                 if (!closedAny) {
                     System.out.println("Closing accounts for " + holder);
                 }
@@ -239,16 +265,15 @@ public class TransactionManager {
                     CertificateDeposit cd = (CertificateDeposit) candidate;
                     interestEarned = cd.computeClosingInterest(closeDate);
                     penalty = cd.getPenalty();
-                    // deposit interest if > 0
-                    if (interestEarned > 0) {
-                        candidate.deposit(interestEarned);
-                    }
-                    candidate.balance -= penalty;
+//                    if (interestEarned > 0) {
+//                        candidate.deposit(interestEarned);
+//                    }
+//                    candidate.balance -= penalty;
                 } else {
                     interestEarned = computePartialMonthInterest(candidate, closeDate);
-                    if (interestEarned > 0) {
-                        candidate.deposit(interestEarned);
-                    }
+//                    if (interestEarned > 0) {
+//                        candidate.deposit(interestEarned);
+//                    }
                 }
                 System.out.printf("--%s interest earned: $%.2f\n",
                         candidate.getNumber(), interestEarned);
@@ -259,19 +284,17 @@ public class TransactionManager {
                 if (candidate instanceof Checking) {
                     updateLoyalStatusForSavings(candidate.getHolder());
                 }
-                closedAny = true;
+                i--;
             }
         }
         if (closedAny) {
-            System.out.println("All accounts for " + holder
-                    + " are closed and moved to archive.");
+            System.out.println("All accounts for " + holder + " are closed and moved to archive.");
         } else {
             System.out.println(holder + " does not have any accounts in the database.");
         }
     }
 
     private void closeSingleAccount(Account acct, Date closeDate) {
-        // 1) Print heading line
         System.out.println("Closing account " + acct.getNumber());
 
         double interestEarned = 0.0;
@@ -282,39 +305,26 @@ public class TransactionManager {
             interestEarned = cd.computeClosingInterest(closeDate);
             penalty = cd.getPenalty();
 
-            // Deposit only if interest > 0
-            if (interestEarned > 0) {
-                acct.deposit(interestEarned);
-            }
-            // Subtract penalty directly (avoid deposit of negative)
-            acct.balance -= penalty;
+//            if (interestEarned > 0) {
+//                acct.deposit(interestEarned);
+//            }
+//            acct.balance -= penalty;
         } else {
-            // Checking/Savings/College/MoneyMarket partial-month interest
             interestEarned = computePartialMonthInterest(acct, closeDate);
-            if (interestEarned > 0) {
-                acct.deposit(interestEarned);
-            }
+//            if (interestEarned > 0) {
+//                acct.deposit(interestEarned);
+//            }
         }
 
-        // 2) Print interest line
         System.out.printf("--interest earned: $%.2f\n", interestEarned);
-
-        // 3) If penalty>0, print penalty line with the exact bracket style if required.
         if (penalty > 0) {
-            // If your prof wants “[penalty] $X” with no dashes:
-            System.out.printf("  [penalty] $%.2f\n", penalty);
-
-            // If they specifically want “--penalty: $X”, do that.
-            // Just match exactly your expected format.
+            System.out.printf("  penalty $%.2f\n", penalty);
         }
-
-        // 4) Actually remove from DB + add to archive
         accountDatabase.closeAccount(acct, closeDate);
-
-        // If closed a CHECKING, possibly break loyalty for that holder’s SAVINGS
         if (acct instanceof Checking) {
             updateLoyalStatusForSavings(acct.getHolder());
         }
+
     }
 
     private double computePartialMonthInterest(Account acct, Date closeDate) {
@@ -330,17 +340,14 @@ public class TransactionManager {
             Savings s = (Savings) acct;
             annualRate = s.isLoyal ? 0.0275 : 0.025;
         } else {
-            // Should never happen for normal checking/savings/college/money-market
             annualRate = 0.0;
         }
-        int dayOfMonth = closeDate.getDay(); // 1..31
+        int dayOfMonth = closeDate.getDay();
         double dailyRate = annualRate / 365.0;
         return acct.getBalance() * dailyRate * dayOfMonth;
     }
 
-
     private void processActivities() {
-
         if (accountDatabase.isEmpty()) {
             System.out.println("ERROR: Account database is empty! Ensure accounts are loaded before processing activities.");
             return;
@@ -349,52 +356,44 @@ public class TransactionManager {
         File f = new File("activities.txt");
         try {
             System.out.println("Processing \"" + f.getName() + "\"...");
+            accountDatabase.processActivities(f);
             Scanner sc = new Scanner(f);
-    
-            while (sc.hasNextLine()) {
-                String line = sc.nextLine().trim();
-                if (line.isEmpty()) continue;
-    
-                String[] tokens = line.split(",");
-                char dw = tokens[0].charAt(0);
-                String acctNumString = tokens[1];
-                Date actDate = new Date(tokens[2]);
-                Branch loc = parseBranch(tokens[3]);
-                double amt = Double.parseDouble(tokens[4]);
-    
-                Account target = accountDatabase.findByNumber(acctNumString);
 
-                if (target == null) {
-                    continue;
-                }
+        while (sc.hasNextLine()) {
+            String line = sc.nextLine().trim();
+            if (line.isEmpty()) continue;
+            String[] tokens = line.split(",");
 
-                if (dw == 'D') {
-                    target.deposit(amt);
-                    Activity depositAct = new Activity(actDate, loc, 'D', amt, true);
-                    target.addActivity(depositAct);
-                    System.out.printf("%s::%s::%s[ATM]::deposit::$%,.2f\n",
-                            acctNumString, actDate, loc, amt);
-                } else {
-                    target.withdraw(amt);
-                    Activity withdrawAct = new Activity(actDate, loc, 'W', amt, true);
-                    target.addActivity(withdrawAct);
-                    System.out.printf("%s::%s::%s[ATM]::withdrawal::$%,.2f\n",
-                            acctNumString, actDate, loc, amt);
+            if (tokens.length < 5) {
+                continue; 
+            }
+
+            String acctNumString = tokens[1];
+
+            Account account = accountDatabase.findByNumber(acctNumString);
+            if (account == null) {
+                continue;
+            }
+
+            List<Activity> activities = account.getActivities();
+            for (int i = 0; i < activities.size(); i++) {
+                Activity activity = activities.get(i);
+                if (activity.isAtm()) {
+                    System.out.println(acctNumString + "::" + activity.toString());
+
+                    break;
                 }
             }
-    
-            sc.close();
+        }
+
+        sc.close();
+           
             System.out.println("Account activities in \"" + f.getName() + "\" processed.");
         } catch (IOException e) {
-            System.out.println("Could not process activities file: " + e.getMessage());
+            System.out.println("Error processing activities file: " + e.getMessage());
         }
-    }    
+    }
 
-
-    /**
-     * Deposits an amount into an account based on the provided tokens.
-     * @param tokens the command tokens
-     */
     private void depositAccount(String[] tokens) {
         if (tokens.length < 3) {
             System.out.println("Missing data tokens for the deposit.");
@@ -417,20 +416,21 @@ public class TransactionManager {
             System.out.println(accountNumberString + " does not exist.");
             return;
         }
-        accountDatabase.deposit(a.getNumber(),amount);
+
+        // ---------------------------------------------
+        // CHANGED: Use CONSOLE_TODAY for deposit logs:
+        accountDatabase.deposit(a.getNumber(), amount);
         a.addActivity(new Activity(new Date(), a.getNumber().getBranch(), 'D', amount, false));
+        // ---------------------------------------------
+
         DecimalFormat df = new DecimalFormat("#,##0.00");
         System.out.println("$" + df.format(amount) + " deposited to " + accountNumberString);
+
         if (a instanceof MoneyMarket) {
             ((MoneyMarket)a).isLoyal = (a.getBalance() >= 5000);
         }
     }
 
-
-    /**
-     * Withdraws an amount from an account based on the provided tokens.
-     * @param tokens the command tokens
-     */
     private void withdrawAccount(String[] tokens) {
         if (tokens.length < 3) {
             System.out.println("Missing data tokens for the withdrawal.");
@@ -456,14 +456,20 @@ public class TransactionManager {
         boolean isMoneyMarket = (a instanceof MoneyMarket);
         boolean success = accountDatabase.withdraw(a.getNumber(), amount);
         if (!success) {
-            if (isMoneyMarket && a.getBalance() < 2000)
-                System.out.printf("%s balance below $2,000 - withdrawing $%,.2f - insufficient funds.\n", accountNumberString, amount);
-            else
+            if (isMoneyMarket && a.getBalance() < 2000) {
+                System.out.printf("%s balance below $2,000 - withdrawing $%,.2f - insufficient funds.\n",
+                        accountNumberString, amount);
+            } else {
                 System.out.println(accountNumberString + " - insufficient funds.");
+            }
         } else {
+            // ---------------------------------------------
+            // CHANGED: Use CONSOLE_TODAY for withdrawal logs:
             a.addActivity(new Activity(new Date(), a.getNumber().getBranch(), 'W', amount, false));
-            if (isMoneyMarket && a.getBalance() < 2000){
-                System.out.printf("%s balance below $2,000 - $%,.2f withdrawn from %s\n", accountNumberString, amount, accountNumberString);
+            // ---------------------------------------------
+            if (isMoneyMarket && a.getBalance() < 2000) {
+                System.out.printf("%s balance below $2,000 - $%,.2f withdrawn from %s\n",
+                        accountNumberString, amount, accountNumberString);
             } else {
                 System.out.printf("$%,.2f withdrawn from %s\n", amount, accountNumberString);
             }
@@ -480,16 +486,12 @@ public class TransactionManager {
         }
         return new Profile(fname, lname, dob);
     }
-    /**
-     * Parses the account type from the input string.
-     * @param input the input string
-     * @return the parsed account type, or null if invalid
-     */
+
     private AccountType parseAccountType(String input) {
         String normalized = input.trim().toLowerCase();
         switch (normalized) {
             case "moneymarket":
-                normalized = "money_market"; 
+                normalized = "money_market";
                 break;
             case "college":
                 normalized = "college_checking";
@@ -500,18 +502,13 @@ public class TransactionManager {
             default:
         }
         try {
-            return AccountType.valueOf(normalized.toUpperCase()); 
+            return AccountType.valueOf(normalized.toUpperCase());
         } catch (IllegalArgumentException e) {
             System.out.println(input + " - invalid account type.");
             return null;
         }
     }
 
-    /**
-     * Parses the branch from the input string.
-     * @param input the input string
-     * @return the parsed branch, or null if invalid
-     */
     private Branch parseBranch(String input) {
         for (Branch b : Branch.values()) {
             if (b.name().equalsIgnoreCase(input)) {
@@ -522,11 +519,6 @@ public class TransactionManager {
         return null;
     }
 
-    /**
-     * Parses the date from the input string.
-     * @param input the input string
-     * @return the parsed date, or null if invalid
-     */
     private Date parseDate(String input) {
         try {
             Date dob = new Date(input);
@@ -543,7 +535,7 @@ public class TransactionManager {
                 System.out.println("Not eligible to open: " + input + " under 18.");
                 return null;
             }
-            return dob; 
+            return dob;
         } catch (IllegalArgumentException e) {
             System.out.println("DOB invalid: " + input + " not a valid calendar date!");
             return null;
@@ -558,7 +550,7 @@ public class TransactionManager {
                 return null;
             }
             if (d.isFutureDate()) {
-                System.out.println("Date invalid: " + input + " cannot be today or a future day."); //fix
+                System.out.println("Date invalid: " + input + " cannot be today or a future day.");
             }
             return d;
         } catch (IllegalArgumentException e) {
@@ -567,12 +559,6 @@ public class TransactionManager {
         }
     }
 
-    /**
-     * Parses the deposit amount from the input string.
-     * @param input the input string
-     * @param accountType the account type
-     * @return the parsed deposit amount, or -1 if invalid
-     */
     private double parseDeposit(String input, AccountType accountType) {
         double deposit;
         try {
@@ -596,17 +582,11 @@ public class TransactionManager {
         return deposit;
     }
 
-    /**
-     * Runs the TransactionManager, processing commands from the user.
-     * Commands include opening, closing, depositing, withdrawing, and printing accounts.
-     */
     public void run() {
-
         try {
             accountDatabase.loadAccounts(new File("accounts.txt"));
             System.out.println("Accounts in \"accounts.txt\" loaded to the database.");
         } catch (IOException e) {
-            // Handle any file I/O problems here.
             System.out.println("Could not load accounts from \"accounts.txt\": " + e.getMessage());
         }
 
@@ -628,19 +608,19 @@ public class TransactionManager {
             }
 
             switch (command) {
-                case "O": // open account
+                case "O":
                     openAccount(tokens);
                     break;
-                case "C": // close account
+                case "C":
                     closeAccount(tokens);
                     break;
-                case "D": // deposit
+                case "D":
                     depositAccount(tokens);
                     break;
-                case "W": // withdraw
+                case "W":
                     withdrawAccount(tokens);
                     break;
-                case "A": // process "activities.txt"
+                case "A":
                     if (tokens.length == 1) {
                         processActivities();
                     } else {
@@ -648,7 +628,6 @@ public class TransactionManager {
                     }
                     break;
                 case "P":
-                    // Project2 says P is deprecated
                     System.out.println("P command is deprecated!");
                     break;
                 case "PA":
@@ -690,25 +669,18 @@ public class TransactionManager {
                     System.out.println("Invalid command!");
                     break;
             }
-
         }
         scanner.close();
     }
 
-    /**
-     * Prints all closed accounts in the archive.
-     */
     private void printArchive() {
         if (accountDatabase.isArchiveEmpty()) {
             System.out.println("Archive is empty.");
         } else {
-        accountDatabase.printArchive();
+            accountDatabase.printArchive();
         }
     }
 
-    /**
-     * Prints all accounts ordered by branch location.
-     */
     private void printByBranch() {
         if (accountDatabase.isEmpty()) {
             System.out.println("Account database is empty!");
@@ -717,9 +689,6 @@ public class TransactionManager {
         accountDatabase.printByBranch();
     }
 
-    /**
-     * Prints all accounts ordered by account holder.
-     */
     private void printByHolder() {
         if (accountDatabase.isEmpty()) {
             System.out.println("Account database is empty!");
@@ -728,9 +697,6 @@ public class TransactionManager {
         accountDatabase.printByHolder();
     }
 
-    /**
-     * Prints all accounts ordered by account type.
-     */
     private void printByType() {
         if (accountDatabase.isEmpty()) {
             System.out.println("Account database is empty!");

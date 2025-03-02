@@ -17,6 +17,7 @@ public class CertificateDeposit extends Savings {
         super(number, holder, balance);
         this.term = term;
         this.openDate = openDate;
+        this.isLoyal = false;
     }
 
     @Override
@@ -51,30 +52,41 @@ public class CertificateDeposit extends Savings {
     }
 
     public double computeClosingInterest(Date closeDate) {
-        int daysBetween = daysBetween(openDate, closeDate);
-        int maturityDays = term * 30; // approximate
+        int daysBetween = daysBetween(openDate, closeDate)+1;
+        int maturityDays = term * 30; // Approximate maturity period
+
+        double dailyRate;
+        double interest = 0.0;
+        double penalty = 0.0;
+
         if (daysBetween >= maturityDays) {
-            // closed AFTER maturity => interest = bal * annualRate/365 * daysBetween
-            double dailyRate = getAnnualRate() / 365.0;
-            penalty = 0.0;
-            return balance * dailyRate * daysBetween;
+            // Fully matured -> Apply full interest rate
+            dailyRate = getAnnualRate() / 365.0;
         } else {
-            // closed BEFORE maturity => special stepped rate
+            // Closed early -> Apply lower interest rate and penalty
             double months = (double) daysBetween / 30.0;
-            double earlyAnnual;
             if (months <= 6) {
-                earlyAnnual = 0.03;
+                dailyRate = 0.03 / 365.0;  // 3% annual rate
             } else if (months <= 9) {
-                earlyAnnual = 0.0325;
+                dailyRate = 0.0325 / 365.0;  // 3.25% annual rate
             } else {
-                earlyAnnual = 0.035;
+                dailyRate = 0.035 / 365.0;  // 3.5% annual rate
             }
-            double dailyRate = earlyAnnual / 365.0;
-            double interest = balance * dailyRate * daysBetween;
-            penalty = 0.10 * interest;
-            return interest;
+            penalty = 0.10 * (balance * dailyRate * daysBetween); // 10% penalty on interest earned
         }
+
+        // Compute final interest
+        interest = balance * dailyRate * daysBetween;
+
+        // Round values to 2 decimal places
+        interest = Math.round(interest * 100.0) / 100.0;
+        penalty = Math.round(penalty * 100.0) / 100.0;
+
+        this.penalty = penalty; // Store penalty in object
+
+        return interest;
     }
+
 
 
     public double getPenalty() {
@@ -104,9 +116,10 @@ public class CertificateDeposit extends Savings {
 
     @Override
     public String toString() {
-        return super.toString() 
-             + String.format(" Term[%d] Date opened[%s] Maturity date[%s]",
-                             term, openDate, maturityDate());
+        this.isLoyal = false;
+        return super.toString()
+                + String.format("Term[%d] Date opened[%s] Maturity date[%s]",
+                term, openDate.toString(), maturityDate().toString());
     }
 }
 

@@ -45,7 +45,7 @@ public abstract class Account implements Comparable<Account> {
 
     protected void printActivities() {
         if (activities.isEmpty()) {
-            System.out.println("\t[Activity] No transactions");
+            return;
         } else {
             System.out.println("\t[Activity]");
             for (Activity act : activities) {
@@ -151,7 +151,7 @@ public abstract class Account implements Comparable<Account> {
         if (obj == null || getClass() != obj.getClass()) return false;
 
         Account other = (Account) obj;
-        return this.holder.equals(other.holder) && this.number.getType() == other.number.getType();
+        return this.number.equals(other.number);
     }
 
     /**
@@ -161,10 +161,11 @@ public abstract class Account implements Comparable<Account> {
      */
     @Override
     public String toString() {
-        return String.format("Account#[%s] Holder[%s] Balance[$%.2f] Branch [%s]",
+        DecimalFormat df = new DecimalFormat("#,##0.00");
+        return String.format("Account#[%s] Holder[%s] Balance[$%s] Branch[%s]",
             number.toString(), 
             holder.toString(),
-            balance,
+            df.format(balance),
             number.getBranch().name() 
         );
     }

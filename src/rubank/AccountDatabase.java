@@ -144,7 +144,9 @@ public class AccountDatabase extends List<Account> {
                     newAcct = new Savings(acctNum, holder, initBal);
                     break;
                 case MONEY_MARKET:
-                    newAcct = new MoneyMarket(acctNum, holder, initBal);
+                    MoneyMarket mm = new MoneyMarket(acctNum, holder, initBal);
+                    mm.isLoyal = (initBal >= 5000);
+                    newAcct = mm;
                     break;
                 case COLLEGE_CHECKING:
                     int campusCode = Integer.parseInt(tokens[6]);
@@ -164,6 +166,22 @@ public class AccountDatabase extends List<Account> {
         }
 
         sc.close();
+
+        for (int i = 0; i < size(); i++) {
+            Account a = get(i);
+            if (a instanceof Savings && !(a instanceof MoneyMarket)) {
+                boolean hasChecking = false;
+                for (int j = 0; j < size(); j++) {
+                    Account other = get(j);
+                    if (other.getHolder().equals(a.getHolder()) &&
+                            other.getNumber().getType() == AccountType.CHECKING) {
+                        hasChecking = true;
+                        break;
+                    }
+                }
+                ((Savings) a).isLoyal = hasChecking;
+            }
+        }
         // Return how many accounts were loaded (caller can print if desired).
         return count;
     }

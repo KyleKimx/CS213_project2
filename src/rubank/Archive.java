@@ -56,9 +56,6 @@ public class Archive {
                 System.out.println("\t[Activity]");
                 for(Activity act : current.data.getActivities()){
                     String actStr = act.toString();
-                    if(actStr.contains("[ATM]")){
-                        actStr = actStr.replace("[ATM]", "");
-                    }
                     System.out.println("\t\t" + actStr);
                 }
             }

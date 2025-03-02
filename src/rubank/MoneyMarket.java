@@ -59,7 +59,7 @@ public class MoneyMarket extends Savings {
 
     @Override
     public String toString() {
-        String loyalTag = isLoyal ? "[LOYAL]" : "";
-        return super.toString() + String.format(" Withdrawal[%d] %s", withdrawal, loyalTag);
+//        String loyalTag = isLoyal ? "[LOYAL]" : "";
+        return super.toString() + String.format(" Withdrawal[%d]", withdrawal);
     }
 }
